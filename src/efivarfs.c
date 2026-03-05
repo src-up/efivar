@@ -584,7 +584,15 @@ efivarfs_set_variable(efi_guid_t guid, const char *name, const uint8_t *data,
 	memcpy(buf, &attributes, sizeof (attributes));
 	memcpy(buf + sizeof (attributes), data, data_size);
 
+	/* Trace: exact size and path for debugging efivarsfs EINVAL / size limits */
+	if (getenv("EFIVAR_TRACE"))
+		fprintf(stderr, "[efivar trace] set_variable path=%s name=%s data_size=%zu alloc_size=%zu attributes=0x%x\n",
+			path, name, data_size, alloc_size, attributes);
+
 	if (write(wfd, buf, alloc_size) == -1) {
+		if (getenv("EFIVAR_TRACE"))
+			fprintf(stderr, "[efivar trace] write failed errno=%d (%s) path=%s alloc_size=%zu\n",
+				errno, strerror(errno), path, alloc_size);
 		efi_error("writing to fd %d failed", wfd);
 		goto err;
 	}

@@ -465,6 +465,7 @@ load_pe(sbchooser_context_t *ctx,
 	const char * const filename,
 	pe_file_t **pe_p)
 {
+	TRACE_ENTER("ctx=%p filename=%s pe_p=%p", (void *)ctx, filename ? filename : "(null)", (void *)pe_p);
 	int ret = -1;
 	pe_file_t *pe = NULL;
 	int fd = -1;
@@ -760,6 +761,7 @@ load_pe(sbchooser_context_t *ctx,
 		goto err;
 
 	*pe_p = pe;
+	TRACE_EXIT_VAL("rc=0");
 	return 0;
 err:
 	{
@@ -771,6 +773,7 @@ err:
 		errno = error;
 	}
 	*pe_p = NULL;
+	TRACE_EXIT_VAL("rc=%d", ret);
 	return ret;
 }
 
@@ -949,6 +952,7 @@ get_highest_hash_secbits(pe_file_t *pe)
 void
 update_pe_security(sbchooser_context_t *ctx, pe_file_t *pe)
 {
+	TRACE_ENTER("ctx=%p pe=%p filename=%s", (void *)ctx, (void *)pe, pe && pe->filename ? pe->filename : "(null)");
 	debug("scoring \"%s\"", pe->filename);
 
 	check_dbx_hashes(ctx, pe);
@@ -1008,6 +1012,7 @@ update_pe_security(sbchooser_context_t *ctx, pe_file_t *pe)
 		lowest_pk_secbits = 0;
 	}
 	pe->secbits = lowest_md_secbits < lowest_pk_secbits ? lowest_md_secbits : lowest_pk_secbits;
+	TRACE_EXIT();
 }
 
 static int
@@ -1080,6 +1085,7 @@ compare_validities(pe_file_t *pe0, pe_file_t *pe1)
 int
 pe_cmp(const void *p0, const void *p1)
 {
+	TRACE_ENTER("p0=%p p1=%p", p0, p1);
 	pe_file_t *pe0 = *(pe_file_t **)p0;
 	pe_file_t *pe1 = *(pe_file_t **)p1;
 	int score;
@@ -1119,8 +1125,11 @@ pe_cmp(const void *p0, const void *p1)
 		debug("prefer \"%s\"", pe0->filename);
 	} else {
 		debug("no preference");
-		return strcmp(pe0->filename, pe1->filename);
+		score = strcmp(pe0->filename, pe1->filename);
+		TRACE_EXIT_VAL("score=%d (strcmp)", score);
+		return score;
 	}
+	TRACE_EXIT_VAL("score=%d", score);
 	return score;
 }
 

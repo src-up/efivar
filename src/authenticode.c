@@ -284,6 +284,7 @@ generate_authenticode_final(digest_buffer_t **dbufs)
 int
 generate_authenticode(pe_file_t *pe)
 {
+	TRACE_ENTER("pe=%p", (void *)pe);
 	int rc;
 
 	digest_buffer_t sha256_dbuf = {
@@ -358,6 +359,7 @@ generate_authenticode(pe_file_t *pe)
 		}
 	}
 
+	TRACE_EXIT_VAL("rc=0");
 	return 0;
 err:
 	for (size_t i = 0; dbufs[i] != NULL; i++) {
@@ -374,6 +376,7 @@ err:
 		}
 	}
 
+	TRACE_EXIT_VAL("rc=-1");
 	return -1;
 }
 

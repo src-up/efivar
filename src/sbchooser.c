@@ -7,6 +7,8 @@
 
 #include "sbchooser.h"
 
+bool sbchooser_trace;
+
 extern char *optarg;
 extern int optind, opterr, optopt;
 
@@ -27,7 +29,8 @@ usage(int status)
 		"  -i, --input=<efi file>            EFI binary for sorting\n"
 		"Help options:\n"
 		"  -?, --help                        Show this help message\n"
-		"      --usage                       Display brief usage message\n",
+		"      --usage                       Display brief usage message\n"
+		"      --trace                       Print function enter/exit and params to stderr\n",
 		program_invocation_short_name);
 	exit(status);
 }
@@ -51,24 +54,29 @@ clean_up_context(sbchooser_context_t *ctxp)
 static int
 add_file_to_ctx(sbchooser_context_t *ctxp, pe_file_t *pe)
 {
+	TRACE_ENTER("ctxp=%p pe=%p n_files=%zu", (void *)ctxp, (void *)pe, ctxp->n_files);
 	size_t n_files = ctxp->n_files + 1;
 	pe_file_t **files;
 
 	files = reallocarray(ctxp->files, n_files, sizeof (*files));
-	if (!files)
+	if (!files) {
+		TRACE_EXIT_VAL("rc=-1");
 		return -1;
+	}
 
 	files[ctxp->n_files] = pe;
 
 	ctxp->files = files;
 	ctxp->n_files = n_files;
 
+	TRACE_EXIT_VAL("rc=0");
 	return 0;
 }
 
 static void
 add_one_pe_to_ctx(sbchooser_context_t *ctx, const char *filename)
 {
+	TRACE_ENTER("ctx=%p filename=%s", (void *)ctx, filename ? filename : "(null)");
 	int rc;
 	pe_file_t *pe = NULL;
 
@@ -83,12 +91,13 @@ add_one_pe_to_ctx(sbchooser_context_t *ctx, const char *filename)
 	rc = add_file_to_ctx(ctx, pe);
 	if (rc < 0)
 		err(ERR_BAD_PE, "Could not add \"%s\" to context", filename);
+	TRACE_EXIT();
 }
 
 int
 main(int argc, char *argv[])
 {
-	const char sopts[] = ":d:Defi:sSx:Xvh";
+	const char sopts[] = ":d:Defi:sSx:Xvht";
 	const struct option lopts[] = {
 		{"db", required_argument, NULL, 'd' },
 		{"no-system-db", no_argument, NULL, 'D' },
@@ -102,6 +111,7 @@ main(int argc, char *argv[])
 		{"verbose", no_argument, NULL, 'v' },
 		{"usage", no_argument, NULL, 'h' },
 		{"help", no_argument, NULL, 'h' },
+		{"trace", no_argument, NULL, 't' },
 		{NULL, 0, NULL, '\0' }
 	};
 	int c;
@@ -112,6 +122,7 @@ main(int argc, char *argv[])
 	bool read_inputs_from_stdin = false;
 	bool explain = false;
 
+	TRACE_ENTER("argc=%d", argc);
 	sbchooser_context_t ctx;
 
 	memset(&ctx, 0, sizeof(ctx));
@@ -195,6 +206,9 @@ main(int argc, char *argv[])
 			if (verbose) {
 				setvbuf(stdout, NULL, _IONBF, 0);
 			}
+			break;
+		case 't':
+			sbchooser_trace = true;
 			break;
 		case '?':
 			if (optopt == '?')
@@ -352,6 +366,7 @@ main(int argc, char *argv[])
 	clean_up_context(&ctx);
 	OPENSSL_cleanup();
 
+	TRACE_EXIT_VAL("rc=0");
 	return 0;
 }
 

@@ -29,6 +29,21 @@
 
 #include "efivar/efisec.h" // IWYU pragma: export
 
+/* Trace instrumentation: set by --trace; when true, ENTER/EXIT and params printed to stderr */
+extern bool sbchooser_trace;
+#define TRACE_ENTER(fmt, ...) do { \
+	if (sbchooser_trace) \
+		fprintf(stderr, "TRACE ENTER %s " fmt "\n", __func__, ##__VA_ARGS__); \
+} while (0)
+#define TRACE_EXIT() do { \
+	if (sbchooser_trace) \
+		fprintf(stderr, "TRACE EXIT %s\n", __func__); \
+} while (0)
+#define TRACE_EXIT_VAL(fmt, ...) do { \
+	if (sbchooser_trace) \
+		fprintf(stderr, "TRACE EXIT %s " fmt "\n", __func__, ##__VA_ARGS__); \
+} while (0)
+
 /*
  * exit status codes from sbchooser
  */

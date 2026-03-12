@@ -12,6 +12,8 @@ make install
 
 Optional: `make install PREFIX=/usr` or `make install DESTDIR=/tmp/stage` for a custom prefix or staged install. The binary is installed to `$(BINDIR)` (default `$(EXEC_PREFIX)/bin`).
 
+**Trace instrumentation:** Build with the tree that includes the trace hooks, then run with `--trace` to print every instrumented function enter/exit and key parameters to stderr (e.g. `sbchooser --trace -s -S /path/to/shim1.efi /path/to/shim2.efi 2>trace.log`). Instrumented: `main`, `add_one_pe_to_ctx`, `add_file_to_ctx`, `load_secdb_from_file`, `load_secdb_from_var`, `parse_secdb_info`, `parse_one_secdb_cert`, `add_cert`, `add_digest`, `load_pe`, `update_pe_security`, `pe_cmp`, `generate_authenticode`, `elaborate_x509_info`, and their return paths.
+
 ---
 
 ## How upstream finds things (6 steps)

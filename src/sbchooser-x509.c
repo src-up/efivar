@@ -124,6 +124,7 @@ free_cert(cert_data_t *cert)
 int
 elaborate_x509_info(cert_data_t *cert)
 {
+	TRACE_ENTER("cert=%p", (void *)cert);
 	int rc;
 	const char *mdsn = NULL;
 	const char *pksn = NULL;
@@ -234,10 +235,12 @@ elaborate_x509_info(cert_data_t *cert)
 	}
 	debug("pk:%s pk_secbits:%d", pksn, cert->pk_secbits);
 
+	TRACE_EXIT_VAL("rc=0");
 	return 0;
 err:
 	X509_free(cert->x509);
 	cert->x509 = NULL;
+	TRACE_EXIT_VAL("rc=-1");
 	return -1;
 }
 

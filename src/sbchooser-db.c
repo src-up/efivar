@@ -19,6 +19,7 @@ static int
 add_cert(sbchooser_context_t *ctx, bool db,
 	 const efi_secdb_data_t * const data, const size_t datasz)
 {
+	TRACE_ENTER("ctx=%p db=%d datasz=%zu", (void *)ctx, db, datasz);
 	cert_data_t *cert = NULL;
 	cert_data_t **new_certs = NULL;
 	cert_data_t ***old_certsp = NULL;
@@ -41,14 +42,18 @@ add_cert(sbchooser_context_t *ctx, bool db,
 	 * avoid stacked cleanup.
 	 */
 	new_certs = reallocarray(*old_certsp, n_certs + 1, sizeof (cert_data_t));
-	if (!new_certs)
+	if (!new_certs) {
+		TRACE_EXIT_VAL("rc=-1");
 		return -1;
+	}
 
 	*old_certsp = new_certs;
 
 	cert = calloc(1, sizeof(*cert));
-	if (!cert)
+	if (!cert) {
+		TRACE_EXIT_VAL("rc=-1");
 		return -1;
+	}
 
 	cert->x509 = d2i_X509(NULL, (const unsigned char **)&data, datasz);
 	cert->free_x509 = true;
@@ -56,6 +61,7 @@ add_cert(sbchooser_context_t *ctx, bool db,
 	if (!cert->x509) {
 		// PJFIX: report errors better
 		warnx("couldn't make new X509");
+		TRACE_EXIT_VAL("rc=-1");
 		return -1;
 	}
 
@@ -63,11 +69,13 @@ add_cert(sbchooser_context_t *ctx, bool db,
 	if (rc < 0) {
 		memset(cert, 0, sizeof(*cert));
 		free(cert);
+		TRACE_EXIT_VAL("rc=%d", rc);
 		return rc;
 	}
 
 	new_certs[n_certs] = cert;
 	*n_certsp = n_certs + 1;
+	TRACE_EXIT_VAL("rc=0");
 	return 0;
 }
 
@@ -75,6 +83,7 @@ static int
 add_digest(sbchooser_context_t *ctx, bool db,
 	   const efi_secdb_data_t * const data, const size_t datasz)
 {
+	TRACE_ENTER("ctx=%p db=%d datasz=%zu", (void *)ctx, db, datasz);
 	digest_data_t *digest = NULL;
 	digest_data_t **new_digests = NULL;
 	digest_data_t ***old_digestsp = NULL;
@@ -98,14 +107,18 @@ add_digest(sbchooser_context_t *ctx, bool db,
 	debug("old_digestsp:%p *old_digestsp:%p, n_digests:%zu, sizeof(digest_data_t):%zu\n",
 	      old_digestsp, *old_digestsp, n_digests, sizeof(digest_data_t));
 	new_digests = reallocarray(*old_digestsp, n_digests + 1, sizeof (digest_data_t));
-	if (!new_digests)
+	if (!new_digests) {
+		TRACE_EXIT_VAL("rc=-1");
 		return -1;
+	}
 
 	*old_digestsp = new_digests;
 
 	digest = calloc(1, sizeof(*digest) + datasz);
-	if (!digest)
+	if (!digest) {
+		TRACE_EXIT_VAL("rc=-1");
 		return -1;
+	}
 
 	digest->data = (uint8_t *)((uintptr_t)digest + sizeof(*digest));
 	memcpy(digest->data, data, datasz);
@@ -113,6 +126,7 @@ add_digest(sbchooser_context_t *ctx, bool db,
 
 	new_digests[n_digests] = digest;
 	*n_digestsp = n_digests + 1;
+	TRACE_EXIT_VAL("rc=0");
 	return 0;
 }
 
@@ -125,8 +139,9 @@ parse_one_secdb_cert(unsigned int listnum UNUSED,
 		     const size_t headersz UNUSED,
 		     const efi_secdb_data_t * const data,
 		     const size_t datasz,
-		     void *ctxp)
+	 void *ctxp)
 {
+	TRACE_ENTER("algorithm=%u db=%d", algorithm, ((struct db_parse_context *)ctxp)->db);
 	int rc;
 	struct db_parse_context *dbctx = ctxp;
 	sbchooser_context_t *ctx = dbctx->ctx;
@@ -138,8 +153,11 @@ parse_one_secdb_cert(unsigned int listnum UNUSED,
 	case EFI_SECDB_TYPE_SHA384:
 	case EFI_SECDB_TYPE_SHA512:
 		rc = add_digest(ctx, dbctx->db, data, datasz);
-		if (rc < 0)
+		if (rc < 0) {
+			TRACE_EXIT();
 			return EFI_SECDB_VISITOR_ERROR;
+		}
+		TRACE_EXIT();
 		return EFI_SECDB_VISITOR_CONTINUE;
 	case EFI_SECDB_TYPE_RSA2048:
 	case EFI_SECDB_TYPE_RSA2048_SHA1:
@@ -150,20 +168,26 @@ parse_one_secdb_cert(unsigned int listnum UNUSED,
 		return EFI_SECDB_VISITOR_CONTINUE;
 	case EFI_SECDB_TYPE_X509_CERT:
 		rc = add_cert(ctx, dbctx->db, data, datasz);
-		if (rc < 0)
+		if (rc < 0) {
+			TRACE_EXIT();
 			return EFI_SECDB_VISITOR_ERROR;
+		}
+		TRACE_EXIT();
 		return EFI_SECDB_VISITOR_CONTINUE;
 	default:
 		debug("unknown algorithm %u\n", algorithm);
+		TRACE_EXIT();
 		return EFI_SECDB_VISITOR_CONTINUE;
 	}
 
+	TRACE_EXIT();
 	return EFI_SECDB_VISITOR_CONTINUE;
 }
 
 int
 parse_secdb_info(sbchooser_context_t *ctx)
 {
+	TRACE_ENTER("ctx=%p", (void *)ctx);
 	int rc;
 	struct db_parse_context dbctx = {
 		.db = false,
@@ -174,6 +198,7 @@ parse_secdb_info(sbchooser_context_t *ctx)
 	rc = efi_secdb_visit_entries(ctx->db, parse_one_secdb_cert, &dbctx);
 	if (rc < 0) {
 		warnx("couldn't visit them all?");
+		TRACE_EXIT_VAL("rc=%d", rc);
 		return rc;
 	}
 
@@ -181,9 +206,11 @@ parse_secdb_info(sbchooser_context_t *ctx)
 	rc = efi_secdb_visit_entries(ctx->dbx, parse_one_secdb_cert, &dbctx);
 	if (rc < 0) {
 		warnx("couldn't visit them all?");
+		TRACE_EXIT_VAL("rc=%d", rc);
 		return rc;
 	}
 
+	TRACE_EXIT_VAL("rc=0");
 	return 0;
 }
 
@@ -241,6 +268,7 @@ free_secdb_info(sbchooser_context_t *ctx)
 int
 load_secdb_from_file(const char * const filename, efi_secdb_t **secdbp)
 {
+	TRACE_ENTER("filename=%s secdbp=%p", filename ? filename : "(null)", (void *)secdbp);
 	int rc;
 	uint8_t *data = NULL;
 	size_t data_size = 0;
@@ -249,6 +277,7 @@ load_secdb_from_file(const char * const filename, efi_secdb_t **secdbp)
 	fd = open(filename, O_RDONLY|O_CLOEXEC);
 	if (fd < 0) {
 		efi_error("Could not open file \"%s\": %m", filename);
+		TRACE_EXIT_VAL("rc=%d", fd);
 		return fd;
 	}
 
@@ -256,7 +285,8 @@ load_secdb_from_file(const char * const filename, efi_secdb_t **secdbp)
 	close(fd);
 	if (rc < 0) {
 		efi_error("Could not read file \"%s\": %m", filename);
-		return fd;
+		TRACE_EXIT_VAL("rc=%d", rc);
+		return rc;
 	}
 	data_size -= 1;
 
@@ -264,9 +294,11 @@ load_secdb_from_file(const char * const filename, efi_secdb_t **secdbp)
 	free(data);
 	if (rc < 0) {
 		efi_error("Could not parse security database \"%s\"", filename);
+		TRACE_EXIT_VAL("rc=%d", rc);
 		return rc;
 	}
 
+	TRACE_EXIT_VAL("rc=0");
 	return 0;
 }
 
@@ -274,17 +306,21 @@ int
 load_secdb_from_var(const char * const name, const efi_guid_t * const guidp,
 		    efi_secdb_t **secdbp)
 {
+	TRACE_ENTER("name=%s secdbp=%p", name ? name : "(null)", (void *)secdbp);
 	uint8_t *data;
 	size_t data_size;
 	uint32_t attrs;
 	int rc;
 
-	if (!efi_variables_supported())
+	if (!efi_variables_supported()) {
+		TRACE_EXIT_VAL("rc=-1 (vars not supported)");
 		return -1;
+	}
 
 	rc = efi_get_variable(*guidp, name, &data, &data_size, &attrs);
 	if (rc < 0) {
 		efi_error("Could not get variable \"%s\"", name);
+		TRACE_EXIT_VAL("rc=%d", rc);
 		return rc;
 	}
 
@@ -292,9 +328,11 @@ load_secdb_from_var(const char * const name, const efi_guid_t * const guidp,
 	free(data);
 	if (rc < 0) {
 		efi_error("Could not parse security database \"%s\"", name);
+		TRACE_EXIT_VAL("rc=%d", rc);
 		return rc;
 	}
 
+	TRACE_EXIT_VAL("rc=0");
 	return 0;
 }
 
